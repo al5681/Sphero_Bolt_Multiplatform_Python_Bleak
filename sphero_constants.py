@@ -10,7 +10,9 @@ SendPacketConstants = {"StartOfPacket": 141,
                        "EndOfPacket": 216,
                        "ESC": 171}
 
-UserIOCommandIDs = {"allLEDs": 28}
+UserIOCommandIDs = {"allLEDs": 28,
+                    "matrixColor": 47
+                    }
 
 PowerCommandIDs = {"wake": 13}
 
