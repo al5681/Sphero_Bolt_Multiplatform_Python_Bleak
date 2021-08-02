@@ -136,12 +136,26 @@ class SpheroBolt:
                         data=[0x38, red, green, blue])
 
     async def setMatrixLED(self, red=None, green=None, blue=None):
+        """
+        Set the LED matrix based on RBG values.
+        """
         print("[SEND {}] Setting matrix LED colour to [{}, {}, {}]".format(self.sequence, red, green, blue))
         await self.send(characteristic=self.API_V2_characteristic,
                         devID=DeviceID["userIO"],
                         commID=UserIOCommandIDs["matrixColor"],
                         targetId=0x012,
                         data=[red, green, blue])
+
+    async def setMatrixLEDChar(self, char=None, red=None, green=None, blue=None):
+        """
+        Write a character to the LED matrix based on RGB values.
+        """
+        print("[SEND {}] Setting matrix char to ' {} ' LED colour to [{}, {}, {}]".format(self.sequence, char, red, green, blue))
+        await self.send(characteristic=self.API_V2_characteristic,
+                        devID=DeviceID["userIO"],
+                        commID=UserIOCommandIDs["printChar"],
+                        targetId=0x012,
+                        data=[red, green, blue, ord(char)])
 
     async def roll(self, speed=None, heading=None):
         """
