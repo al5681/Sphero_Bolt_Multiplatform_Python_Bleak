@@ -148,7 +148,7 @@ class SpheroBolt:
 
     async def setMatrixLEDChar(self, char=None, red=None, green=None, blue=None):
         """
-        Write a character to the LED matrix based on RGB values.
+        Write a character to the LED matrix, with a colour based on RGB values.
         """
         print("[SEND {}] Setting matrix char to ' {} ' LED colour to [{}, {}, {}]".format(self.sequence, char, red, green, blue))
         await self.send(characteristic=self.API_V2_characteristic,
