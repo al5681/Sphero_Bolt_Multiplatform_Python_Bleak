@@ -2,6 +2,7 @@ import asyncio
 
 from sphero_bolt import SpheroBolt, BoltScan
 from random import randrange
+import random
 
 async def spt(address):
     my_sphero = SpheroBolt(address)
@@ -16,14 +17,17 @@ async def spt(address):
 
         # roll in a square
         while True:
-            await my_sphero.roll(randrange(256), randrange(359))
+            await my_sphero.roll(0, randrange(359))
             #await asyncio.sleep(2)
             await my_sphero.setFrontLEDColor(red=randrange(255), \
                                              green=randrange(255), blue=randrange(255))
             await my_sphero.setBackLEDColor(red=randrange(255), \
                                             green=randrange(255), blue=randrange(255))
-            await my_sphero.setMatrixLED(red=randrange(255), \
+            #await my_sphero.setMatrixLED(red=randrange(255), \
+            #                                 green=randrange(255), blue=randrange(255))
+            await my_sphero.setMatrixPix(x=random.randrange(0,7), y=random.randrange(0,7), red=randrange(255), \
                                              green=randrange(255), blue=randrange(255))
+            await asyncio.sleep(0.1)
 
     finally:
         await my_sphero.disconnect()
@@ -34,8 +38,8 @@ async def run():
         #"CC:F7:8F:11:BC:51"
     #)
     scan = BoltScan()
+    #address = [await scan.scan()]
     address = await scan.scanAll()
-    print('{} Spheros Detected'.format(len(address)))
     tasks = []
     for f in address:
         task = asyncio.ensure_future(spt(f))

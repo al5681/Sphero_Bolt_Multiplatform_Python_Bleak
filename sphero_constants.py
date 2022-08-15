@@ -12,7 +12,10 @@ SendPacketConstants = {"StartOfPacket": 141,
 
 UserIOCommandIDs = {"allLEDs": 28,
                     "matrixColor": 47,
+                    "matrixPix": 45,
                     "printChar": 66}
+
+SensorCommandIds = {"calibrateToNorth": 37}
 
 PowerCommandIDs = {"wake": 13}
 
