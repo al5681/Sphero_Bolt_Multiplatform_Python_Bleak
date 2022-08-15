@@ -1,6 +1,40 @@
 import struct
 from sphero_constants import *
 from bleak import BleakClient
+from bleak import BleakScanner
+
+class BoltScan:
+    def __init__(self):
+        self.bolts = []
+
+    async def scan(self, name=None):
+        print(f'[SCAN] Scanning for Sphero Bolt with name {name}')
+        devices = await BleakScanner.discover()
+        for de in devices:
+            #print(de)
+            try:
+                if de.name.startswith('SB-'):
+                    if name == None:
+                        return de.address
+                    else:
+                        if name == de.name:
+                            return de.address
+            except Exception as e:
+                print(e)
+
+
+    async def scanAll(self):
+        print(f'[SCAN] Scanning for all nearby Sphero Bolts')
+        d = []
+        devices = await BleakScanner.discover()
+        for de in devices:
+            try:
+                if de.name.startswith('SB-'):
+                    d += [de]
+            except:
+                pass
+        print('[SCAN] {} Spheros Detected'.format(len(d)))
+        return d
 
 
 class SpheroBolt:
@@ -15,7 +49,7 @@ class SpheroBolt:
         """
         self.client = BleakClient(self.address)
         await self.client.connect()
-        print("Connected: {0}".format(self.client.is_connected))
+        print("[BOLT] Connected: {0}".format(self.client.is_connected))
 
         # cancel if not connected
         if not self.client.is_connected:
@@ -34,7 +68,10 @@ class SpheroBolt:
 
         # Unlock code: prevent the sphero mini from going to sleep again after 10 seconds
         print("[INIT] Writing AntiDOS characteristic unlock code")
-        await self.client.write_gatt_char(AntiDOS_characteristic, b"usetheforce...band", response=True)
+        try:
+            await self.client.write_gatt_char(AntiDOS_characteristic, b"usetheforce...band", response=True)
+        except:
+            return False
 
         print("[INIT] Initialization complete\n")
 
@@ -56,38 +93,42 @@ class SpheroBolt:
         The flags byte indicates which fields are populated.
         The checksum is the ~sum(message[1:-2]) | 0xff.
         """
-        self.sequence = (self.sequence + 1) % 256
-        running_sum = 0
-        command = []
-        command.append(SendPacketConstants["StartOfPacket"])
-        if targetId is None:
-            cmdflg = Flags["requestsResponse"] | \
-                     Flags["resetsInactivityTimeout"] | 0
-            command.append(cmdflg)
-            running_sum += cmdflg
-        else:
-            cmdflg = Flags["requestsResponse"] | \
-                     Flags["resetsInactivityTimeout"] | targetId
-            command.append(cmdflg)
-            running_sum += cmdflg
-            command.append(targetId)
-            running_sum += targetId
+        try:
+            self.sequence = (self.sequence + 1) % 256
+            running_sum = 0
+            command = []
+            command.append(SendPacketConstants["StartOfPacket"])
+            if targetId is None:
+                cmdflg = Flags["requestsResponse"] | \
+                         Flags["resetsInactivityTimeout"] | 0
+                command.append(cmdflg)
+                running_sum += cmdflg
+            else:
+                cmdflg = Flags["requestsResponse"] | \
+                         Flags["resetsInactivityTimeout"] | targetId
+                command.append(cmdflg)
+                running_sum += cmdflg
+                command.append(targetId)
+                running_sum += targetId
 
-        command.append(devID)
-        running_sum += devID
-        command.append(commID)
-        running_sum += commID
-        command.append(self.sequence)
-        running_sum += self.sequence
+            command.append(devID)
+            running_sum += devID
+            command.append(commID)
+            running_sum += commID
+            command.append(self.sequence)
+            running_sum += self.sequence
 
-        if data is not None:
-            for datum in data:
-                command.append(datum)
-                running_sum += datum
-        checksum = (~running_sum) & 0xff
-        command.append(checksum)
-        command.append(SendPacketConstants["EndOfPacket"])
-        await self.client.write_gatt_char(characteristic, command)
+            if data is not None:
+                for datum in data:
+                    command.append(datum)
+                    running_sum += datum
+            checksum = (~running_sum) & 0xff
+            command.append(checksum)
+            command.append(SendPacketConstants["EndOfPacket"])
+            await self.client.write_gatt_char(characteristic, command)
+        except Exception as e:
+            #print(e)
+            return
 
     async def wake(self):
         """
@@ -95,12 +136,16 @@ class SpheroBolt:
         If in deep sleep, the device should be connected to USB power to wake.
         """
         print("[SEND {}] Waking".format(self.sequence))
-
-        await self.send(
-            characteristic=self.API_V2_characteristic,
-            devID=DeviceID["powerInfo"],
-            commID=PowerCommandIDs["wake"],
-            data=[])  # empty payload
+        while True:
+            try:
+                await self.send(
+                    characteristic=self.API_V2_characteristic,
+                    devID=DeviceID["powerInfo"],
+                    commID=PowerCommandIDs["wake"],
+                    data=[])  # empty payload
+                return
+            except Exception as e:
+                print('Error waking retrying', e)
 
     async def setBothLEDColors(self, red=None, green=None, blue=None):
         """
@@ -112,6 +157,28 @@ class SpheroBolt:
                         devID=DeviceID["userIO"],
                         commID=UserIOCommandIDs["allLEDs"],
                         data=[0x3f, red, green, blue, red, green, blue])
+
+    async def setMatrixPix(self, x=0, y=0, red=None, green=None, blue=None):
+        """
+        Set the LED matrix pixels based on RBG values.
+        """
+        print("[SEND {}] Setting matrix Pixel colour to [{}, {}] [{}, {}, {}]".format(self.sequence, x, y, red, green, blue))
+        await self.send(characteristic=self.API_V2_characteristic,
+                        devID=DeviceID["userIO"],
+                        commID=UserIOCommandIDs["matrixPix"],
+                        targetId=0x012,
+                        data=[x, y, red, green, blue])
+
+    async def calibrateToNorth(self):
+        """
+        Calibates Sphero to north
+        """
+        print("[SEND {}] Calibrating to North".format(self.sequence))
+        await self.send(characteristic=self.API_V2_characteristic,
+                        devID=DeviceID["userIO"],
+                        commID=SensorCommandIds["calibrateToNorth"],
+                        targetId=0x12,
+                        data=[])
 
     async def setFrontLEDColor(self, red=None, green=None, blue=None):
         """
