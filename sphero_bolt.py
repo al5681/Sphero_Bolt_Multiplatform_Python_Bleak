@@ -1,6 +1,37 @@
 import struct
 from sphero_constants import *
 from bleak import BleakClient
+from bleak import BleakScanner
+
+class BoltScan:
+    def __init__(self):
+        self.bolts = []
+
+    async def scan(self, name=None):
+        devices = await BleakScanner.discover()
+        for de in devices:
+            #print(de)
+            try:
+                if de.name.startswith('SB-'):
+                    if name == None:
+                        return de.address
+                    else:
+                        if name == de.name:
+                            return de.address
+            except Exception as e:
+                print(e)
+
+
+    async def scanAll(self):
+        d = []
+        devices = await BleakScanner.discover()
+        for de in devices:
+            try:
+                if de.name.startswith('SB-'):
+                    d += [de]
+            except:
+                pass
+        return d
 
 
 class SpheroBolt:
@@ -95,12 +126,16 @@ class SpheroBolt:
         If in deep sleep, the device should be connected to USB power to wake.
         """
         print("[SEND {}] Waking".format(self.sequence))
-
-        await self.send(
-            characteristic=self.API_V2_characteristic,
-            devID=DeviceID["powerInfo"],
-            commID=PowerCommandIDs["wake"],
-            data=[])  # empty payload
+        while True:
+            try:
+                await self.send(
+                    characteristic=self.API_V2_characteristic,
+                    devID=DeviceID["powerInfo"],
+                    commID=PowerCommandIDs["wake"],
+                    data=[])  # empty payload
+                return
+            except Exception as e:
+                print('Error waking retrying', e)
 
     async def setBothLEDColors(self, red=None, green=None, blue=None):
         """
